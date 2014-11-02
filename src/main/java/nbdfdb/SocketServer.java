@@ -1,7 +1,14 @@
 package nbdfdb;
 
+import com.foundationdb.Database;
+import com.foundationdb.FDB;
+import com.foundationdb.async.Future;
+import com.foundationdb.async.PartialFunction;
+import com.foundationdb.directory.DirectoryLayer;
+import com.foundationdb.directory.DirectorySubspace;
 import com.google.common.primitives.UnsignedInteger;
 import com.google.common.primitives.UnsignedLong;
+import com.sampullara.fdb.FDBArray;
 
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -11,17 +18,22 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.LongAdder;
+
+import static java.util.Arrays.asList;
 
 public class SocketServer {
 
   public static void main(String[] args) throws IOException {
+    Database db = FDB.selectAPIVersion(200).open();
+    DirectorySubspace ds = DirectoryLayer.getDefault().createOrOpen(db, asList("com.sampullara.fdb", "nbdfdb")).get();
+    FDBArray fdbArray = new FDBArray(db, ds, 512);
     ExecutorService es = Executors.newCachedThreadPool();
     ServerSocket ss = new ServerSocket(10809);
     while (true) {
       Socket accept = ss.accept();
       es.submit(() -> {
         try {
-          byte[] storage = new byte[64_000_000];
           DataInputStream in = new DataInputStream(accept.getInputStream());
           DataOutputStream os = new DataOutputStream(new BufferedOutputStream(accept.getOutputStream()));
 
@@ -39,11 +51,13 @@ public class SocketServer {
           int length = in.readInt();
           byte[] bytes = new byte[length];
           in.readFully(bytes);
-          os.writeLong(storage.length);
+          os.writeLong(1_000_000_000); // 1 GiB
           os.writeShort(1 + 4 + 32); // FLUSH, TRIM
           os.write(new byte[124]);
           os.flush();
 
+          LongAdder writesStarted = new LongAdder();
+          LongAdder writesComplete = new LongAdder();
           byte[] handle = new byte[8];
           while (true) {
             in.readInt(); // MAGIC
@@ -55,23 +69,57 @@ public class SocketServer {
               throw new RuntimeException("Failed to read, length too long: " + requestLength);
             }
             switch (requestType) {
-              case 0: // NBD_CMD_READ
-                os.writeInt(0x67446698); // MAGIC
-                os.writeInt(0); // OK
-                os.write(handle);
-                os.write(storage, offset.intValue(), requestLength.intValue());
-                os.flush();
-                System.out.println("Read: " + offset + ", " + requestLength);
+              case 0: { // NBD_CMD_READ
+                byte[] buffer = new byte[requestLength.intValue()];
+                Future<Void> read = fdbArray.read(buffer, offset.intValue());
+                read.map(new PartialFunction<Void, Object>() {
+                  @Override
+                  public Object apply(Void aVoid) throws Exception {
+                    synchronized (os) {
+                      os.writeInt(0x67446698); // MAGIC
+                      os.writeInt(0); // OK
+                      os.write(handle);
+                      os.write(buffer);
+                      os.flush();
+                    }
+                    System.out.println("Read: " + offset + ", " + requestLength);
+                    return null;
+                  }
+                });
                 break;
-              case 1: // NBD_CMD_WRITE
-                in.readFully(storage, offset.intValue(), requestLength.intValue());
-                writeReplyHeader(os, handle);
-                System.out.println("Write: " + offset + ", " + requestLength);
+              }
+              case 1: { // NBD_CMD_WRITE
+                byte[] buffer = new byte[requestLength.intValue()];
+                in.readFully(buffer);
+                writesStarted.increment();
+                fdbArray.write(offset.intValue(), buffer).map(new PartialFunction<Void, Object>() {
+                  @Override
+                  public Object apply(Void aVoid) throws Exception {
+                    writeReplyHeader(os, handle);
+                    System.out.println("Write: " + offset + ", " + requestLength);
+                    writesComplete.increment();
+                    synchronized (writesComplete) {
+                      writesComplete.notifyAll();
+                    }
+                    return null;
+                  }
+                });
                 break;
+              }
               case 2: // NBD_CMD_DISC
                 accept.close();
                 break;
               case 3: // NBD_CMD_FLUSH
+                synchronized (writesComplete) {
+                  long target = writesStarted.longValue();
+                  while (target > writesComplete.longValue()) {
+                    try {
+                      writesComplete.wait();
+                    } catch (InterruptedException e) {
+                      // Ignore and continue looping
+                    }
+                  }
+                }
                 writeReplyHeader(os, handle);
                 break;
               case 4: // NBD_CMD_TRIM
@@ -93,9 +141,11 @@ public class SocketServer {
   }
 
   private static void writeReplyHeader(DataOutputStream os, byte[] handle) throws IOException {
-    os.writeInt(0x67446698);
-    os.writeInt(0); // OK
-    os.write(handle);
-    os.flush();
+    synchronized (os) {
+      os.writeInt(0x67446698);
+      os.writeInt(0); // OK
+      os.write(handle);
+      os.flush();
+    }
   }
 }
