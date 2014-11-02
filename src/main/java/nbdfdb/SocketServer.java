@@ -52,17 +52,16 @@ public class SocketServer {
           byte[] bytes = new byte[length];
           in.readFully(bytes);
           os.writeLong(1_000_000_000); // 1 GiB
-          os.writeShort(1 + 4 + 32); // FLUSH, TRIM
+          os.writeShort(1 + 4); // FLUSH
           os.write(new byte[124]);
           os.flush();
 
           LongAdder writesStarted = new LongAdder();
           LongAdder writesComplete = new LongAdder();
-          byte[] handle = new byte[8];
           while (true) {
             in.readInt(); // MAGIC
             int requestType = in.readInt();
-            in.readFully(handle);
+            long handle = in.readLong();
             UnsignedLong offset = UnsignedLong.fromLongBits(in.readLong());
             UnsignedInteger requestLength = UnsignedInteger.fromIntBits(in.readInt());
             if (requestLength.longValue() > Integer.MAX_VALUE) {
@@ -78,11 +77,10 @@ public class SocketServer {
                     synchronized (os) {
                       os.writeInt(0x67446698); // MAGIC
                       os.writeInt(0); // OK
-                      os.write(handle);
+                      os.writeLong(handle);
                       os.write(buffer);
                       os.flush();
                     }
-                    System.out.println("Read: " + offset + ", " + requestLength);
                     return null;
                   }
                 });
@@ -92,11 +90,11 @@ public class SocketServer {
                 byte[] buffer = new byte[requestLength.intValue()];
                 in.readFully(buffer);
                 writesStarted.increment();
-                fdbArray.write(offset.intValue(), buffer).map(new PartialFunction<Void, Object>() {
+                Future<Void> write = fdbArray.write(offset.intValue(), buffer);
+                write.map(new PartialFunction<Void, Object>() {
                   @Override
                   public Object apply(Void aVoid) throws Exception {
                     writeReplyHeader(os, handle);
-                    System.out.println("Write: " + offset + ", " + requestLength);
                     writesComplete.increment();
                     synchronized (writesComplete) {
                       writesComplete.notifyAll();
@@ -140,11 +138,11 @@ public class SocketServer {
     }
   }
 
-  private static void writeReplyHeader(DataOutputStream os, byte[] handle) throws IOException {
+  private static void writeReplyHeader(DataOutputStream os, long handle) throws IOException {
     synchronized (os) {
       os.writeInt(0x67446698);
       os.writeInt(0); // OK
-      os.write(handle);
+      os.writeLong(handle);
       os.flush();
     }
   }
