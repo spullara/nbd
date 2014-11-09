@@ -4,6 +4,9 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 
 public class NBD {
+  public static final int NBD_OK              = 0       ; /* OK */
+  public static final byte[] NBD_OK_BYTES     = new byte[4];
+
   public static final int NBD_FLAG_HAS_FLAGS  = (1 << 0);	/* Flags are there */
   public static final int NBD_FLAG_READ_ONLY  =	(1 << 1);	/* Device is read-only */
   public static final int NBD_FLAG_SEND_FLUSH =	(1 << 2);	/* Send FLUSH */
@@ -24,11 +27,12 @@ public class NBD {
   public static final byte[] OPTS_MAGIC_BYTES = Longs.toByteArray(OPTS_MAGIC);
   public static final long REP_MAGIC = 0x3e889045565a9L;
   public static final byte[] REP_MAGIC_BYTES = Longs.toByteArray(REP_MAGIC);
+  public static final byte[] EMPTY_124 = new byte[124];
 
   enum Command {
     READ,
     WRITE,
-    DISC,
+    DISCOVER,
     FLUSH,
     TRIM,
     CACHE
