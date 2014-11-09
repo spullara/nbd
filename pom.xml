@@ -17,6 +17,11 @@
       <version>0.1-SNAPSHOT</version>
     </dependency>
     <dependency>
+      <groupId>com.github.spullara.cli-parser</groupId>
+      <artifactId>cli-parser</artifactId>
+      <version>1.1.2</version>
+    </dependency>
+    <dependency>
       <groupId>io.netty</groupId>
       <artifactId>netty-all</artifactId>
       <version>4.0.23.Final</version>

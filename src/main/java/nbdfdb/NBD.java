@@ -29,10 +29,13 @@ public class NBD {
   public static final byte[] REP_MAGIC_BYTES = Longs.toByteArray(REP_MAGIC);
   public static final byte[] EMPTY_124 = new byte[124];
 
+  // FDB Keys
+  public static final byte[] SIZE_KEY = "size".getBytes();
+
   enum Command {
     READ,
     WRITE,
-    DISCOVER,
+    DISCONNECT,
     FLUSH,
     TRIM,
     CACHE
@@ -41,6 +44,4 @@ public class NBD {
   public static final int NBD_OPT_EXPORT_NAME = 1;
   public static final int NBD_OPT_ABORT = 2;
   public static final int NBD_OPT_LIST = 3;
-
-
 }
