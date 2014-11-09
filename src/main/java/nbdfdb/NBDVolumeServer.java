@@ -96,7 +96,7 @@ class NBDVolumeServer implements Runnable {
             byte[] buffer = new byte[requestLength.intValue()];
             in.readFully(buffer);
             writesStarted.increment();
-            Future<Void> write = fdbArray.write(offset.intValue(), buffer);
+            Future<Void> write = fdbArray.write(buffer, offset.intValue());
             write.map((PartialFunction<Void, Object>) aVoid -> {
               writeReplyHeaderAndFlush(handle);
               writesComplete.increment();
