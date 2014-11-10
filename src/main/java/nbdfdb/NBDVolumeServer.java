@@ -140,14 +140,12 @@ class NBDVolumeServer implements Runnable {
             writeReplyHeaderAndFlush(handle);
             break;
           case TRIM:
-            System.out.println("Trim");
+            log.warning("Trim unimplemented");
             writeReplyHeaderAndFlush(handle);
             break;
           case CACHE:
-            System.out.println("Cache");
+            log.warning("Cache unimplemented");
             break;
-          default:
-            System.out.println("What command? " + requestType);
         }
       }
     } catch (Exception e) {

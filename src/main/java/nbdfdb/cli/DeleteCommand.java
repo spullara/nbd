@@ -18,5 +18,6 @@ public class DeleteCommand implements Runnable {
   public void run() {
     FDBArray fdbArray = FDBArray.open(fdb.open(), exportName);
     fdbArray.delete();
+    System.out.println("Deleted volume " + exportName);
   }
 }
