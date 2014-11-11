@@ -31,6 +31,7 @@ public class NBD {
 
   // FDB Keys
   public static final byte[] SIZE_KEY = "size".getBytes();
+  public static final byte[] LEASE_KEY = "lease".getBytes();
 
   enum Command {
     READ,

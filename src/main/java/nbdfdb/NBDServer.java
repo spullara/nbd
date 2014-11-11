@@ -25,6 +25,7 @@ public class NBDServer {
 
   public static void main(String[] args) throws IOException {
     ExecutorService es = Executors.newCachedThreadPool();
+    log.info("Listening for nbd-client connections");
     ServerSocket ss = new ServerSocket(10809);
     while (true) {
       Socket accept = ss.accept();
@@ -56,6 +57,11 @@ public class NBDServer {
           nbdVolumeServer.run();
         } catch (Throwable e) {
           log.log(Level.SEVERE, "Failed to connect", e);
+          try {
+            accept.close();
+          } catch (IOException e1) {
+            e1.printStackTrace();
+          }
         }
       });
     }
