@@ -1,28 +1,26 @@
 package nbdfdb;
 
-import com.foundationdb.Database;
-import com.foundationdb.FDB;
-import com.foundationdb.async.Future;
-import com.foundationdb.async.SettableFuture;
+import com.apple.foundationdb.Database;
+import com.apple.foundationdb.FDB;
 import com.google.common.primitives.Longs;
 import com.sampullara.fdb.FDBArray;
 
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.LongAdder;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.concurrent.TimeUnit.SECONDS;
+import static java.util.concurrent.TimeUnit.*;
 
 public class FDBStorage implements Storage {
   private static final long _30_SECONDS = MILLISECONDS.convert(30, SECONDS);
   private static final long _1_MINUTE = MILLISECONDS.convert(1, MINUTES);
   private static final byte[] ZERO = Longs.toByteArray(0);
 
-  private static final Database db = FDB.selectAPIVersion(200).open();
+  private static final Database db = FDB.selectAPIVersion(510).open();
   private static final ExecutorService es = Executors.newFixedThreadPool(1, r -> new Thread(r, "fdbstorage-flush"));
   private static final Timer timer = new Timer("connection-leases");
 
@@ -74,15 +72,15 @@ public class FDBStorage implements Storage {
   }
 
   @Override
-  public Future<Void> read(byte[] buffer, long offset) {
+  public CompletableFuture<Void> read(byte[] buffer, long offset) {
     return fdbArray.read(buffer, offset);
   }
 
   @Override
-  public Future<Void> write(byte[] buffer, long offset) {
+  public CompletableFuture<Void> write(byte[] buffer, long offset) {
     writesStarted.increment();
-    Future<Void> write = fdbArray.write(buffer, offset);
-    write.onReady(() -> {
+    CompletableFuture<Void> write = fdbArray.write(buffer, offset);
+    write.thenRun(() -> {
       writesComplete.increment();
       synchronized (writesComplete) {
         writesComplete.notifyAll();
@@ -92,8 +90,8 @@ public class FDBStorage implements Storage {
   }
 
   @Override
-  public Future<Void> flush() {
-    SettableFuture<Void> result = new SettableFuture<>();
+  public CompletableFuture<Void> flush() {
+    CompletableFuture<Void> result = new CompletableFuture<>();
     es.submit(() -> {
       synchronized (writesComplete) {
         long target = writesStarted.longValue();
@@ -105,7 +103,7 @@ public class FDBStorage implements Storage {
           }
         }
       }
-      result.set(null);
+      result.complete(null);
     });
     return result;
   }
@@ -117,6 +115,10 @@ public class FDBStorage implements Storage {
 
   @Override
   public long usage() {
-    return fdbArray.usage().get();
+    try {
+      return fdbArray.usage().get();
+    } catch (ExecutionException | InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 }

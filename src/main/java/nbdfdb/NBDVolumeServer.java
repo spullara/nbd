@@ -1,27 +1,21 @@
 package nbdfdb;
 
-import com.foundationdb.async.Future;
-import com.foundationdb.async.PartialFunction;
 import com.google.common.primitives.UnsignedInteger;
 import com.google.common.primitives.UnsignedLong;
-import nbdfdb.NBD.Command;
+import nbdfdb.NBD.*;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static nbdfdb.NBD.EMPTY_124;
-import static nbdfdb.NBD.NBD_FLAG_HAS_FLAGS;
-import static nbdfdb.NBD.NBD_FLAG_SEND_FLUSH;
-import static nbdfdb.NBD.NBD_OK_BYTES;
-import static nbdfdb.NBD.NBD_REPLY_MAGIC_BYTES;
-import static nbdfdb.NBD.NBD_REQUEST_MAGIC;
+import static nbdfdb.NBD.*;
 
 /**
-* Created by sam on 11/9/14.
-*/
+ * Created by sam on 11/9/14.
+ */
 public class NBDVolumeServer implements Runnable {
 
   private final Logger log;
@@ -75,14 +69,18 @@ public class NBDVolumeServer implements Runnable {
           case READ: {
             byte[] buffer = new byte[requestLength.intValue()];
             log.info("Reading " + buffer.length + " from " + offset);
-            Future<Void> read = storage.read(buffer, offset.intValue());
-            read.map((PartialFunction<Void, Object>) $ -> {
+            CompletableFuture<Void> read = storage.read(buffer, offset.intValue());
+            read.thenApply($ -> {
               synchronized (out) {
-                out.write(NBD_REPLY_MAGIC_BYTES);
-                out.write(NBD_OK_BYTES);
-                out.writeLong(handle);
-                out.write(buffer);
-                out.flush();
+                try {
+                  out.write(NBD_REPLY_MAGIC_BYTES);
+                  out.write(NBD_OK_BYTES);
+                  out.writeLong(handle);
+                  out.write(buffer);
+                  out.flush();
+                } catch (IOException e) {
+                  throw new RuntimeException(e);
+                }
               }
               return null;
             });
@@ -92,9 +90,13 @@ public class NBDVolumeServer implements Runnable {
             byte[] buffer = new byte[requestLength.intValue()];
             in.readFully(buffer);
             log.info("Writing " + buffer.length + " to " + offset);
-            Future<Void> write = storage.write(buffer, offset.intValue());
-            write.map((PartialFunction<Void, Object>) $ -> {
-              writeReplyHeaderAndFlush(handle);
+            CompletableFuture<Void> write = storage.write(buffer, offset.intValue());
+            write.thenApply($ -> {
+              try {
+                writeReplyHeaderAndFlush(handle);
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
               return null;
             });
             break;
@@ -106,8 +108,12 @@ public class NBDVolumeServer implements Runnable {
           case FLUSH:
             log.info("Flushing");
             long start = System.currentTimeMillis();
-            storage.flush().map((PartialFunction<Void, Object>) $ -> {
-              writeReplyHeaderAndFlush(handle);
+            storage.flush().thenApply($ -> {
+              try {
+                writeReplyHeaderAndFlush(handle);
+              } catch (IOException e) {
+                throw new RuntimeException(e);
+              }
               log.info("Flush complete: " + (System.currentTimeMillis() - start) + "ms");
               return null;
             });

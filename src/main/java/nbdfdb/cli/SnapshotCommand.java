@@ -1,12 +1,12 @@
 package nbdfdb.cli;
 
-import com.foundationdb.Database;
-import com.foundationdb.FDB;
+import com.apple.foundationdb.Database;
+import com.apple.foundationdb.FDB;
 import com.sampullara.cli.Argument;
 import com.sampullara.fdb.FDBArray;
 
 public class SnapshotCommand implements Runnable {
-  FDB fdb = FDB.selectAPIVersion(200);
+  FDB fdb = FDB.selectAPIVersion(510);
 
   @Argument(alias = "n", description = "Name of the snapshot volume to create", required = true)
   private String exportName;

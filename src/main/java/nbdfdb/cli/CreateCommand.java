@@ -1,6 +1,6 @@
 package nbdfdb.cli;
 
-import com.foundationdb.FDB;
+import com.apple.foundationdb.FDB;
 import com.google.common.primitives.Longs;
 import com.sampullara.cli.Argument;
 import com.sampullara.fdb.FDBArray;
@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 import static nbdfdb.NBD.SIZE_KEY;
 
 public class CreateCommand implements Runnable {
-  FDB fdb = FDB.selectAPIVersion(200);
+  FDB fdb = FDB.selectAPIVersion(510);
 
   @Argument(alias = "n", description = "Name of the volume to create", required = true)
   private String exportName;
