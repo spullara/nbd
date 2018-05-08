@@ -23,8 +23,11 @@ import com.apple.foundationdb.directory.DirectoryLayer;
 import nbdfdb.FDBStorage;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+
+import static java.util.Collections.singletonList;
 
 public class ListCommand implements Runnable {
   FDB fdb = FDB.selectAPIVersion(510);
@@ -34,7 +37,7 @@ public class ListCommand implements Runnable {
     Database db = fdb.open();
     List<String> exportNames = null;
     try {
-      exportNames = DirectoryLayer.getDefault().list(db, Arrays.asList("com.sampullara.fdb.array")).get();
+      exportNames = DirectoryLayer.getDefault().list(db, singletonList("com.sampullara.fdb.array")).get();
     } catch (ExecutionException | InterruptedException e) {
       throw new RuntimeException(e);
     }

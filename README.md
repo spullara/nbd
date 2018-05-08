@@ -29,13 +29,17 @@ delete a volume or snapshot a current volume to another volume.
 HOWTO
 =====
 
+Bring up FoundationDB and then run the NBDServer. It will be listening on the default 10809 port.
+
+```bash
+java -jar nbdcli.jar server
+```
+
 Create a new 1G volume:
 
 ```bash
-NBDCLI create -n [volume name] -s 1G 
+java -jar nbdcli.jar create -n [volume name] -s 1G 
 ```
-
-Bring up FoundationDB and then run the NBDServer. It will be listening on the default 10809 port.
 
 On a Linux host, install ndb, create the block device, format it and mount it:
 

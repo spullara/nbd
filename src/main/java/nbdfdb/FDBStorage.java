@@ -95,14 +95,12 @@ public class FDBStorage implements Storage {
   @Override
   public CompletableFuture<Void> write(byte[] buffer, long offset) {
     writesStarted.increment();
-    CompletableFuture<Void> write = fdbArray.write(buffer, offset);
-    write.thenRun(() -> {
+    return fdbArray.write(buffer, offset).thenRun(() -> {
       writesComplete.increment();
       synchronized (writesComplete) {
         writesComplete.notifyAll();
       }
     });
-    return write;
   }
 
   @Override

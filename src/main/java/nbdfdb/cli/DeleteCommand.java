@@ -28,7 +28,7 @@ public class DeleteCommand implements Runnable {
 
   FDB fdb = FDB.selectAPIVersion(510);
 
-  @Argument(alias = "n", description = "Name of the volume to create", required = true)
+  @Argument(alias = "n", description = "Name of the volume to delete", required = true)
   private String exportName;
 
   @Override

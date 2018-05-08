@@ -35,7 +35,7 @@ public class SnapshotCommand implements Runnable {
   public void run() {
     Database db = fdb.open();
     FDBArray volume = FDBArray.open(db, volumeName);
-    FDBArray snapshot = volume.snapshot(exportName);
+    volume.snapshot(exportName);
     System.out.println("Successfully snapshotted " + volumeName + " as " + exportName);
   }
 }

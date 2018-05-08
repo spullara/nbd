@@ -18,6 +18,7 @@
 package nbdfdb;
 
 import com.google.common.base.Charsets;
+import com.sampullara.cli.Argument;
 
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
@@ -37,10 +38,13 @@ public class NBDServer {
 
   private static Logger log = Logger.getLogger("NBD");
 
+  @Argument(alias = "p", description = "The server port to listen on for connections")
+  private static Integer port = 10809;
+
   public static void main(String[] args) throws IOException {
     ExecutorService es = Executors.newCachedThreadPool();
     log.info("Listening for nbd-client connections");
-    ServerSocket ss = new ServerSocket(10809);
+    ServerSocket ss = new ServerSocket(port);
     while (true) {
       Socket accept = ss.accept();
       es.submit(() -> {
@@ -55,6 +59,7 @@ public class NBDServer {
           out.writeShort(NBD_FLAG_HAS_FLAGS);
           out.flush();
 
+          // TODO: interpret the client flags.
           int clientFlags = in.readInt();
           long magic = in.readLong();
           int opt = in.readInt();

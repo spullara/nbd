@@ -86,8 +86,7 @@ public class NBDVolumeServer implements Runnable {
           case READ: {
             byte[] buffer = new byte[requestLength.intValue()];
             log.info("Reading " + buffer.length + " from " + offset);
-            CompletableFuture<Void> read = storage.read(buffer, offset.intValue());
-            read.thenApply($ -> {
+            storage.read(buffer, offset.intValue()).thenApply($ -> {
               synchronized (out) {
                 try {
                   out.write(NBD_REPLY_MAGIC_BYTES);
@@ -107,8 +106,7 @@ public class NBDVolumeServer implements Runnable {
             byte[] buffer = new byte[requestLength.intValue()];
             in.readFully(buffer);
             log.info("Writing " + buffer.length + " to " + offset);
-            CompletableFuture<Void> write = storage.write(buffer, offset.intValue());
-            write.thenApply($ -> {
+            storage.write(buffer, offset.intValue()).thenApply($ -> {
               try {
                 writeReplyHeaderAndFlush(handle);
               } catch (IOException e) {
