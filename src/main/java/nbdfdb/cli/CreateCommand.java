@@ -3,7 +3,7 @@ package nbdfdb.cli;
 import com.apple.foundationdb.FDB;
 import com.google.common.primitives.Longs;
 import com.sampullara.cli.Argument;
-import com.sampullara.fdb.FDBArray;
+import nbdfdb.FDBArray;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;

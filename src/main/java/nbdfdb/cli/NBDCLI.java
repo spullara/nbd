@@ -9,6 +9,7 @@ public class NBDCLI {
     DELETE(new DeleteCommand()),
     SNAPSHOT(new SnapshotCommand()),
     LIST(new ListCommand()),
+    SERVER(new ServerCommand()),
     ;
     private final Runnable command;
 

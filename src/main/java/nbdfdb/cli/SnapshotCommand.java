@@ -3,7 +3,7 @@ package nbdfdb.cli;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDB;
 import com.sampullara.cli.Argument;
-import com.sampullara.fdb.FDBArray;
+import nbdfdb.FDBArray;
 
 public class SnapshotCommand implements Runnable {
   FDB fdb = FDB.selectAPIVersion(510);

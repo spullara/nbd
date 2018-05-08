@@ -14,10 +14,7 @@ import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static nbdfdb.NBD.INIT_PASSWD;
-import static nbdfdb.NBD.NBD_FLAG_HAS_FLAGS;
-import static nbdfdb.NBD.NBD_OPT_EXPORT_NAME;
-import static nbdfdb.NBD.OPTS_MAGIC_BYTES;
+import static nbdfdb.NBD.*;
 
 public class NBDServer {
 

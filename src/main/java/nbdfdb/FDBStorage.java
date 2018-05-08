@@ -3,7 +3,6 @@ package nbdfdb;
 import com.apple.foundationdb.Database;
 import com.apple.foundationdb.FDB;
 import com.google.common.primitives.Longs;
-import com.sampullara.fdb.FDBArray;
 
 import java.util.Timer;
 import java.util.TimerTask;
