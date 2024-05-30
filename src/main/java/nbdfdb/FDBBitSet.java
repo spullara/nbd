@@ -19,15 +19,17 @@ package nbdfdb;
 
 import com.apple.foundationdb.*;
 import com.apple.foundationdb.subspace.Subspace;
+import org.roaringbitmap.RoaringBitmap;
+import org.roaringbitmap.buffer.ImmutableRoaringBitmap;
+import org.roaringbitmap.buffer.MutableRoaringBitmap;
 
-import java.util.BitSet;
+import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
 
 public class FDBBitSet {
   private final Database database;
   private final Subspace subspace;
   private final int blockSize;
-  private final int bitsPerBlock;
   private final byte[] allSetBytes;
   private final Range subspaceRange;
 
@@ -35,10 +37,11 @@ public class FDBBitSet {
     this.database = database;
     this.subspace = subspace;
     this.blockSize = blockSize;
-    bitsPerBlock = blockSize * 8;
-    BitSet allSet = new BitSet(bitsPerBlock);
-    allSet.set(0, bitsPerBlock);
-    allSetBytes = allSet.toByteArray();
+    RoaringBitmap allSet = new RoaringBitmap();
+    allSet.add(0L, blockSize * 8L);
+    ByteBuffer byteBuffer = ByteBuffer.allocate(allSet.serializedSizeInBytes());
+    allSet.serialize(byteBuffer);
+    allSetBytes = byteBuffer.array();
     subspaceRange = Range.startsWith(subspace.pack());
   }
 
@@ -50,37 +53,21 @@ public class FDBBitSet {
   }
 
   protected void set(Transaction tx, long startBit, long endBit) {
-    long startBlock = startBit / bitsPerBlock;
-    long endBlock = endBit / bitsPerBlock;
-    BitSet bitSet = new BitSet(bitsPerBlock);
-    for (long block = startBlock; block <= endBlock; block++) {
-      bitSet.clear();
-      if (block == startBlock) {
-        int startBitOffset = (int) (startBit % bitsPerBlock);
-        int endBitOffset = startBlock == endBlock ? (int) (endBit % bitsPerBlock) : bitsPerBlock - 1;
-        bitSet.set(startBitOffset, endBitOffset + 1);
-        byte[] bitBytes = bitSet.toByteArray();
-        byte[] bytes = new byte[blockSize];
-        System.arraycopy(bitBytes, 0, bytes, 0, bitBytes.length);
-        tx.mutate(MutationType.BIT_OR, subspace.get(block).pack(), bytes);
-      } else if (block == endBlock) {
-        int endBitOffset = (int) (endBit % bitsPerBlock);
-        bitSet.set(0, endBitOffset);
-        byte[] bitBytes = bitSet.toByteArray();
-        byte[] bytes = new byte[blockSize];
-        System.arraycopy(bitBytes, 0, bytes, 0, bitBytes.length);
-        tx.mutate(MutationType.BIT_OR, subspace.get(block).pack(), bytes);
-      } else {
-        tx.set(subspace.get(block).pack(), allSetBytes);
-      }
-    }
+    MutableRoaringBitmap bitSet = new MutableRoaringBitmap();
+    bitSet.add(startBit, endBit);
+    ByteBuffer byteBuffer = ByteBuffer.allocate(bitSet.serializedSizeInBytes());
+    bitSet.serialize(byteBuffer);
+    byte[] bytes = byteBuffer.array();
+    tx.set(subspace.pack(), bytes);
   }
 
   public CompletableFuture<Long> count() {
     return database.runAsync(tx -> {
       long count = 0;
       for (KeyValue keyValue : tx.getRange(subspaceRange)) {
-        count += BitSet.valueOf(keyValue.getValue()).cardinality();
+        ByteBuffer byteBuffer = ByteBuffer.wrap(keyValue.getValue());
+        ImmutableRoaringBitmap bitSet = new ImmutableRoaringBitmap(byteBuffer);
+        count += bitSet.getLongCardinality();
       }
       return CompletableFuture.completedFuture(count);
     });
