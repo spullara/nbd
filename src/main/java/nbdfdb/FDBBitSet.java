@@ -53,9 +53,12 @@ public class FDBBitSet {
   }
 
   protected void set(Transaction tx, long startBit, long endBit) {
+    // TODO: need to do something if the bitset is too big for an FDB value
     MutableRoaringBitmap bitSet = new MutableRoaringBitmap();
-    bitSet.add(startBit, endBit);
-    ByteBuffer byteBuffer = ByteBuffer.allocate(bitSet.serializedSizeInBytes());
+    bitSet.add(startBit, endBit + 1);
+    int capacity = bitSet.serializedSizeInBytes();
+    assert capacity <= 100_000;
+    ByteBuffer byteBuffer = ByteBuffer.allocate(capacity);
     bitSet.serialize(byteBuffer);
     byte[] bytes = byteBuffer.array();
     tx.set(subspace.pack(), bytes);
